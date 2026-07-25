@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { OrderItem } from '@/domain/types';
 import {
   addToCart,
+  buildSampleCart,
   cartLineFromCatalog,
   removeFromCart,
   setCartQty,
@@ -11,7 +12,6 @@ import { planFulfillment, type FulfillmentPlan } from '@/demo/fulfillment';
 import {
   entryKey,
   generateWorld,
-  totalSellable,
   type DemoWorld,
 } from '@/demo/inventory';
 
@@ -80,19 +80,9 @@ export const useDemoStore = create<DemoState>((set, get) => ({
   },
 
   loadSampleCart() {
-    const { world } = get();
-    // Pick the first 3 products the network can actually cover (≥2 units),
-    // so the sample is always fulfillable and one click is enough to test.
-    const picks = world.products
-      .filter((p) => totalSellable(world, p.sku) >= 2)
-      .slice(0, 3);
-
-    let cart: CartLine[] = [];
-    picks.forEach((product, i) => {
-      const line = cartLineFromCatalog(world, product.sku);
-      if (line) cart = addToCart(cart, line, i === 0 ? 2 : 1);
-    });
-    set({ cart });
+    // Randomized every click (Math.random) so the product mix — and therefore
+    // the fulfilling stores and optimization outcome — visibly varies run to run.
+    set({ cart: buildSampleCart(get().world) });
   },
 
   setQty(sku, qty) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addToCart,
+  buildSampleCart,
   cartIsFulfillable,
   cartItemCount,
   cartToOrderItems,
@@ -11,7 +12,9 @@ import {
   setCartQty,
   type CartLine,
 } from './cart';
-import { generateWorld, sellableUnits, entriesForSku } from './inventory';
+import { generateWorld, sellableUnits, entriesForSku, totalSellable } from './inventory';
+import { mulberry32 } from '@/lib/rng';
+import { buildScenario, hasOptimizationHeadroom } from './scenario';
 
 const COFFEE: Omit<CartLine, 'qty'> = {
   sku: 'SKU-CAFE-250',
@@ -125,5 +128,58 @@ describe('cartToOrderItems', () => {
     expect(cartToOrderItems(cart)).toEqual([
       { sku: COFFEE.sku, name: COFFEE.name, qty: 2, unitPriceCents: 1450000 },
     ]);
+  });
+});
+
+describe('buildSampleCart (randomized sample order)', () => {
+  const world = generateWorld(2026);
+
+  it('always yields a valid, in-stock, fulfillable cart', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const cart = buildSampleCart(world, mulberry32(seed));
+      expect(cart.length).toBeGreaterThanOrEqual(3);
+      expect(cart.length).toBeLessThanOrEqual(6);
+      for (const line of cart) {
+        expect(line.qty).toBeGreaterThanOrEqual(1);
+        expect(line.qty).toBeLessThanOrEqual(4);
+        // Only in-stock products, and never more than the network can supply.
+        expect(totalSellable(world, line.sku)).toBeGreaterThanOrEqual(line.qty);
+      }
+      // No duplicate skus (each product is a single line).
+      expect(new Set(cart.map((l) => l.sku)).size).toBe(cart.length);
+      expect(cartIsFulfillable(world, cart)).toBe(true);
+    }
+  });
+
+  it('produces a fresh mix across clicks (variety)', () => {
+    const signatures = new Set<string>();
+    for (let seed = 1; seed <= 12; seed++) {
+      const cart = buildSampleCart(world, mulberry32(seed));
+      signatures.add(
+        cart
+          .map((l) => `${l.sku}x${l.qty}`)
+          .sort()
+          .join('|'),
+      );
+    }
+    // Many distinct orders, not the same three products every time.
+    expect(signatures.size).toBeGreaterThanOrEqual(8);
+  });
+
+  it('usually spans multiple stores → real optimization headroom', () => {
+    let withHeadroom = 0;
+    const runs = 16;
+    for (let seed = 1; seed <= runs; seed++) {
+      const cart = buildSampleCart(world, mulberry32(seed));
+      const scenario = buildScenario(world, cartToOrderItems(cart));
+      if (hasOptimizationHeadroom(scenario)) withHeadroom += 1;
+    }
+    // The multi-store bias means the strong majority of samples have headroom.
+    expect(withHeadroom).toBeGreaterThanOrEqual(Math.ceil(runs * 0.7));
+  });
+
+  it('returns an empty cart when nothing is in stock', () => {
+    const empty = { ...world, entries: new Map() };
+    expect(buildSampleCart(empty, mulberry32(1))).toEqual([]);
   });
 });

@@ -1,5 +1,12 @@
 import type { OrderItem } from '@/domain/types';
-import { bestPriceCents, totalSellable, type DemoWorld } from './inventory';
+import type { ProductDef } from './catalog';
+import {
+  bestPriceCents,
+  entriesForSku,
+  sellableUnits,
+  totalSellable,
+  type DemoWorld,
+} from './inventory';
 
 /**
  * Pure cart logic. A cart line references a catalog product; its unit price is
@@ -109,4 +116,69 @@ export function cartLineFromCatalog(
   const price = bestPriceCents(world, sku);
   if (price === null) return null;
   return { sku: product.sku, name: product.name, unitPriceCents: price };
+}
+
+/** Number of distinct stores that can actually sell a product right now. */
+function sellableStoreCount(world: DemoWorld, sku: string): number {
+  return entriesForSku(world, sku).filter((e) => sellableUnits(e) > 0).length;
+}
+
+/**
+ * Build a RANDOMIZED sample cart for the "Pedido de ejemplo" button: a fresh
+ * mix every click, biased so the order usually spans several stores (giving the
+ * optimizer real headroom), with an occasional easy single-store order.
+ *
+ * Randomness is injected (`random`, default `Math.random`) so tests can drive it
+ * deterministically; the button itself passes `Math.random` for genuine variety.
+ * Always valid: only in-stock products, quantities capped at available stock.
+ */
+export function buildSampleCart(
+  world: DemoWorld,
+  random: () => number = Math.random,
+): CartLine[] {
+  const randInt = (min: number, max: number): number =>
+    min + Math.floor(random() * (max - min + 1));
+
+  const shuffle = <T>(arr: T[]): T[] => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      const tmp = arr[i]!;
+      arr[i] = arr[j]!;
+      arr[j] = tmp;
+    }
+    return arr;
+  };
+
+  const inStock = world.products.filter((p) => totalSellable(world, p.sku) >= 1);
+  if (inStock.length === 0) return [];
+
+  const multiStore = inStock.filter((p) => sellableStoreCount(world, p.sku) >= 2);
+  const singleStore = inStock.filter((p) => sellableStoreCount(world, p.sku) === 1);
+
+  // ~20% of the time, build a genuinely easy single-store order (no headroom →
+  // exercises the "Ya es óptimo" path) when there are enough single-store items.
+  const wantEasy = random() < 0.2 && singleStore.length >= 3;
+
+  let chosen: ProductDef[];
+  if (wantEasy) {
+    chosen = shuffle([...singleStore]).slice(0, randInt(3, Math.min(5, singleStore.length)));
+  } else {
+    const target = Math.min(randInt(3, 6), inStock.length);
+    // Prefer multi-store items so the plan scatters and the GA can consolidate.
+    chosen = shuffle([...multiStore]).slice(0, target);
+    if (chosen.length < target) {
+      const rest = shuffle(inStock.filter((p) => !chosen.includes(p)));
+      chosen = [...chosen, ...rest.slice(0, target - chosen.length)];
+    }
+  }
+
+  let cart: CartLine[] = [];
+  for (const product of chosen) {
+    const line = cartLineFromCatalog(world, product.sku);
+    if (!line) continue;
+    const available = totalSellable(world, product.sku);
+    const qty = Math.max(1, Math.min(available, randInt(1, 4)));
+    cart = addToCart(cart, line, qty);
+  }
+  return cart;
 }
