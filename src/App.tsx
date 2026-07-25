@@ -5,6 +5,7 @@ import { useDemoStore } from '@/store/demoStore';
 import { CartPanel } from '@/components/cart/CartPanel';
 import { DashboardWidgets } from '@/components/dashboard/DashboardWidgets';
 import { InventoryBrowser } from '@/components/inventory/InventoryBrowser';
+import { OnboardingGuide } from '@/components/OnboardingGuide';
 import { OrderForm } from '@/components/OrderForm';
 import { OrdersBoard } from '@/components/OrdersBoard';
 import { RecentOrders } from '@/components/RecentOrders';
@@ -65,26 +66,14 @@ function DemoExperience() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
-      {/* Widgets */}
-      <section aria-label="Indicadores del negocio">
-        <SectionHeading icon="chart" title="Panel de control" />
-        <DashboardWidgets />
-      </section>
+      {/* Onboarding: how to test the demo */}
+      <OnboardingGuide />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        {/* Left: inventory + cart */}
-        <div className="space-y-6">
-          <section aria-label="Inventario">
-            <Panel
-              icon="box"
-              title="Inventario"
-              subtitle="catálogo simulado · 5 tiendas de Barranquilla"
-            >
-              <InventoryBrowser />
-            </Panel>
-          </section>
-
-          <section aria-label="Carrito de compras">
+      {/* PRIMARY TEST AREA — lead with the interactive path (cart + live board) */}
+      <section aria-label="Área de prueba" className="scroll-mt-20">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+          {/* Cart — the thing you drive */}
+          <div>
             <Panel
               icon="cart"
               title={count > 0 ? `Carrito (${count})` : 'Carrito'}
@@ -108,12 +97,10 @@ function DemoExperience() {
                 )}
               </div>
             </Panel>
-          </section>
-        </div>
+          </div>
 
-        {/* Right: live board + recent */}
-        <div className="space-y-6">
-          <section aria-label="Pedidos en vivo">
+          {/* Live board — the thing you watch */}
+          <div>
             <div className="mb-3 flex items-center justify-between px-1">
               <SectionHeading icon="bolt" title="Pedidos en vivo" noMargin />
               <p className="text-[11px] text-slate-500">
@@ -122,14 +109,34 @@ function DemoExperience() {
               </p>
             </div>
             <OrdersBoard />
-          </section>
-
-          <section aria-label="Pedidos recientes">
-            <Panel icon="list" title="Pedidos recientes" subtitle="GET /v1/orders">
-              <RecentOrders />
-            </Panel>
-          </section>
+          </div>
         </div>
+      </section>
+
+      {/* Inventory — supports the test path, just below the fold */}
+      <section aria-label="Inventario">
+        <Panel
+          icon="box"
+          title="Inventario"
+          subtitle="catálogo simulado · 5 tiendas de Barranquilla · agrega al carrito ↑"
+        >
+          <InventoryBrowser />
+        </Panel>
+      </section>
+
+      {/* Business widgets + recent orders */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <section aria-label="Indicadores del negocio">
+          <SectionHeading icon="chart" title="Panel de control" />
+          <DashboardWidgets />
+        </section>
+
+        <section aria-label="Pedidos recientes">
+          <SectionHeading icon="list" title="Pedidos recientes" />
+          <Panel icon="clock" title="Historial de la sesión" subtitle="GET /v1/orders">
+            <RecentOrders />
+          </Panel>
+        </section>
       </div>
     </main>
   );

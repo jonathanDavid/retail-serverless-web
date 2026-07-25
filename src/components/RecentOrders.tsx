@@ -39,7 +39,8 @@ export function RecentOrders() {
   if (recent.length === 0) {
     return (
       <p className="px-1 py-6 text-center text-xs text-slate-500">
-        No orders recorded yet.
+        Todavía no hay pedidos registrados. Cuando realices uno, aparecerá aquí
+        (viene de <span className="font-mono text-slate-400">GET /v1/orders</span>).
       </p>
     );
   }
