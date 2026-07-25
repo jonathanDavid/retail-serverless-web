@@ -3,28 +3,34 @@ import type { Order } from '@/domain/types';
 import {
   OPTIMIZER_ENABLED,
   optimizePickupForOrder,
+  type OptimizerOutcome,
 } from '@/api/optimizerClient';
 import {
   buildComparison,
+  totalCostCents,
   type OptimizationComparison,
+  type PickupMetrics,
 } from '@/lib/optimizerCompare';
 import { formatCentsCOP } from '@/lib/money';
+import { useDemoStore } from '@/store/demoStore';
 import { Icon } from '@/components/ui/Icon';
 
 type Phase =
   | { kind: 'idle' }
   | { kind: 'running' }
-  | { kind: 'done'; comparison: OptimizationComparison; generations: number }
+  | { kind: 'compared'; comparison: OptimizationComparison; generations: number }
+  | { kind: 'optimal'; plan: PickupMetrics; reason: 'single-store' | 'no-gain' }
   | { kind: 'error'; message: string };
 
 /**
  * Optional "Optimizar recogida" action (hidden unless VITE_OPTIMIZER_URL is
- * set). Runs the genetic-visualizer pickup problem on a scenario seeded from
- * the orderId and shows un-optimized vs optimized metrics side by side.
- * Errors degrade to an inline message — the dashboard never depends on the
- * optimizer being up.
+ * set). It optimizes the REAL order against the REAL store inventory via the
+ * genetic-visualizer pickup problem, shows the naive plan vs the GA plan, and —
+ * when a single store already covers the order — an honest "already optimal"
+ * state instead of a fake −0%.
  */
 export function OptimizePickup({ order }: { order: Order }) {
+  const world = useDemoStore((s) => s.world);
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
 
   if (!OPTIMIZER_ENABLED) return null;
@@ -32,19 +38,21 @@ export function OptimizePickup({ order }: { order: Order }) {
   async function run(): Promise<void> {
     setPhase({ kind: 'running' });
     try {
-      const result = await optimizePickupForOrder(order);
-      setPhase({
-        kind: 'done',
-        comparison: buildComparison(result.before, result.after),
-        generations: result.generations,
-      });
+      const outcome: OptimizerOutcome = await optimizePickupForOrder(order, world);
+      if (outcome.kind === 'already-optimal') {
+        setPhase({ kind: 'optimal', plan: outcome.plan, reason: outcome.reason });
+      } else {
+        setPhase({
+          kind: 'compared',
+          comparison: buildComparison(outcome.before, outcome.after),
+          generations: outcome.generations,
+        });
+      }
     } catch (err) {
       setPhase({
         kind: 'error',
         message:
-          err instanceof Error
-            ? err.message
-            : 'El optimizador no está disponible.',
+          err instanceof Error ? err.message : 'El optimizador no está disponible.',
       });
     }
   }
@@ -85,12 +93,43 @@ export function OptimizePickup({ order }: { order: Order }) {
         </div>
       )}
 
-      {phase.kind === 'done' && (
+      {phase.kind === 'optimal' && (
+        <AlreadyOptimal plan={phase.plan} reason={phase.reason} />
+      )}
+
+      {phase.kind === 'compared' && (
         <ComparisonTable
           comparison={phase.comparison}
           generations={phase.generations}
         />
       )}
+    </div>
+  );
+}
+
+function AlreadyOptimal({
+  plan,
+  reason,
+}: {
+  plan: PickupMetrics;
+  reason: 'single-store' | 'no-gain';
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
+        <Icon name="check" className="h-3.5 w-3.5" />
+        Ya es óptimo
+      </p>
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        {reason === 'single-store'
+          ? 'Un solo local cubre todo el pedido — no hay rutas alternativas que consolidar.'
+          : 'El plan actual ya no se puede mejorar: el algoritmo no encontró una recogida más barata.'}
+      </p>
+      <p className="text-[11px] text-slate-500">
+        {plan.storesUsed} {plan.storesUsed === 1 ? 'tienda' : 'tiendas'} ·{' '}
+        {plan.routeKm.toFixed(1)} km · ~{plan.travelMinutes} min ·{' '}
+        {formatCentsCOP(totalCostCents(plan))} costo total
+      </p>
     </div>
   );
 }
@@ -132,6 +171,12 @@ function ComparisonTable({
       after: formatCentsCOP(comparison.itemCostCents.after),
       better: comparison.itemCostCents.delta < 0,
     },
+    {
+      label: 'Costo total',
+      before: formatCentsCOP(comparison.totalCostCents.before),
+      after: formatCentsCOP(comparison.totalCostCents.after),
+      better: comparison.totalCostCents.delta < 0,
+    },
   ];
 
   return (
@@ -142,7 +187,7 @@ function ComparisonTable({
           Sin optimizar vs optimizado
         </p>
         <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
-          −{Math.max(0, comparison.optimizationPct)}% costo total
+          −{comparison.optimizationPct}% costo total
         </span>
       </div>
       <table className="w-full text-[11px]">
@@ -170,7 +215,8 @@ function ComparisonTable({
         </tbody>
       </table>
       <p className="mt-1.5 text-[10px] text-slate-600">
-        {generations} generaciones · población inicial aleatoria como línea base
+        {generations} generaciones · línea base: tienda más cercana por artículo
+        (sin consolidar)
       </p>
     </div>
   );
