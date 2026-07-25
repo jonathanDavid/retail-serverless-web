@@ -1,12 +1,12 @@
 import { type FormEvent, useMemo, useState } from 'react';
 import type { CreateOrderRequest, OrderItem } from '@/domain/types';
-import { STORES } from '@/domain/constants';
+import { STORES, emptyItem } from '@/domain/constants';
 import { ordersApi } from '@/api/orders';
 import { ApiError } from '@/api/client';
 import { computeTotalCents, validateCreateOrder } from '@/lib/orderState';
 import { formatCentsCOP } from '@/lib/money';
 import { useOrdersStore } from '@/store/ordersStore';
-import { LineItemsEditor, emptyItem } from './LineItemsEditor';
+import { LineItemsEditor } from './LineItemsEditor';
 import { StoreSelector } from './StoreSelector';
 
 const fieldClass =

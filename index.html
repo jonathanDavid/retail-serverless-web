@@ -1,13 +1,57 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retail Serverless — Panel de Pedidos e Inventario</title>
     <meta
       name="description"
-      content="Dashboard for a Retail Serverless Backend — submit orders and watch them move through an event-driven pipeline live."
+      content="Panel de un backend retail serverless y event-driven: inventario simulado de tiendas de Barranquilla, carrito de compras, pedidos que avanzan en vivo por la tubería (SQS, Lambda, DynamoDB) y planes de recogida optimizables."
     />
-    <title>Retail Serverless — Orders Dashboard</title>
+    <meta name="author" content="Jonathan Ilias" />
+    <meta name="theme-color" content="#0b1120" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9.5 5.2 5h13.6L20 9.5M4 9.5a2.3 2.3 0 0 0 4 1.5 2.3 2.3 0 0 0 4 0 2.3 2.3 0 0 0 4 0 2.3 2.3 0 0 0 4-1.5M5.5 12v7h13v-7M10 19v-4h4v4'/%3E%3C/svg%3E"
+    />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Retail Serverless — Panel de Pedidos e Inventario" />
+    <meta
+      property="og:description"
+      content="Inventario simulado, carrito de compras y pedidos avanzando en vivo por una tubería serverless (202 → SQS → Lambda → DynamoDB). Reconstrucción de portafolio de Jonathan Ilias."
+    />
+    <meta property="og:locale" content="es_CO" />
+    <meta property="og:site_name" content="Retail Serverless" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Retail Serverless — Panel de Pedidos e Inventario" />
+    <meta
+      name="twitter:description"
+      content="Panel retail event-driven: carrito, inventario multi-tienda y pedidos en vivo sobre una tubería serverless."
+    />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Retail Serverless — Panel de Pedidos",
+        "description": "Panel de un backend retail serverless: inventario simulado multi-tienda, carrito de compras y pedidos que avanzan en vivo por una tubería event-driven (SQS, Lambda, DynamoDB).",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "es-CO",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "COP" },
+        "author": {
+          "@type": "Person",
+          "name": "Jonathan Ilias",
+          "email": "jdavid.ilias@gmail.com",
+          "jobTitle": "Senior Full Stack & Cloud Engineer"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

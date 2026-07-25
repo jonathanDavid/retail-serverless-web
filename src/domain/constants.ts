@@ -1,4 +1,9 @@
-import type { OrderStatus } from './types';
+import type { OrderItem, OrderStatus } from './types';
+
+/** Blank manual-entry line item, priced in integer cents. */
+export function emptyItem(): OrderItem {
+  return { sku: '', name: '', qty: 1, unitPriceCents: 0 };
+}
 
 /** Demo store list. In production these come from the catalog service. */
 export const STORES = [

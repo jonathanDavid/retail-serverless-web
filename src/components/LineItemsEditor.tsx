@@ -6,11 +6,6 @@ interface Props {
   onChange: (items: OrderItem[]) => void;
 }
 
-/** Blank line item, priced in cents (integer). */
-export function emptyItem(): OrderItem {
-  return { sku: '', name: '', qty: 1, unitPriceCents: 0 };
-}
-
 const inputClass =
   'w-full rounded-lg border border-surface-border bg-surface px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 outline-none transition-colors focus:border-brand focus:ring-1 focus:ring-brand';
 

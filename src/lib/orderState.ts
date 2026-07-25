@@ -87,9 +87,8 @@ export function buildStepper(current: OrderStatus): Step[] {
     });
   }
 
-  const currentIndex = ORDER_STATUS_FLOW.indexOf(
-    current as (typeof ORDER_STATUS_FLOW)[number],
-  );
+  // `failed` was handled above, so `current` is one of the happy-path states.
+  const currentIndex = ORDER_STATUS_FLOW.indexOf(current);
 
   return ORDER_STATUS_FLOW.map((status, index) => {
     let state: StepState;
@@ -107,9 +106,8 @@ export function buildStepper(current: OrderStatus): Step[] {
 export function progressRatio(status: OrderStatus): number {
   if (status === 'completed') return 1;
   if (status === 'failed') return 0.66; // stalled at ~processing
-  const idx = ORDER_STATUS_FLOW.indexOf(
-    status as (typeof ORDER_STATUS_FLOW)[number],
-  );
+  // Terminal states were handled above; the remainder are happy-path states.
+  const idx = ORDER_STATUS_FLOW.indexOf(status);
   const lastIdx = ORDER_STATUS_FLOW.length - 1;
   return idx <= 0 ? 0 : idx / lastIdx;
 }
