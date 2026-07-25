@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-surface font-sans text-slate-200 antialiased;
+    background-image:
+      radial-gradient(60rem 60rem at 110% -10%, rgba(99, 102, 241, 0.08), transparent),
+      radial-gradient(50rem 50rem at -10% 10%, rgba(56, 189, 248, 0.06), transparent);
+    background-attachment: fixed;
+  }
+
+  /* Trim the number-input spinners for a tidier line-item grid. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    @apply m-0 appearance-none;
+  }
+}
