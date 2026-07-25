@@ -29,6 +29,7 @@ export default [
       globals: {
         window: 'readonly',
         document: 'readonly',
+        localStorage: 'readonly',
         console: 'readonly',
         fetch: 'readonly',
         crypto: 'readonly',
