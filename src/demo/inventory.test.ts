@@ -8,6 +8,7 @@ import {
   LOW_STOCK_THRESHOLD,
   sellableUnits,
   stockStatus,
+  storesCarrying,
   totalSellable,
   type InventoryEntry,
 } from './inventory';
@@ -47,22 +48,50 @@ describe('generateWorld determinism', () => {
     expect(differences).toBeGreaterThan(0);
   });
 
-  it('covers every store × product cell with sane values', () => {
+  it('emits only sane, sparse cells (a product may be absent from a store)', () => {
     const world = generateWorld(99);
-    expect(world.entries.size).toBe(DEMO_STORES.length * DEMO_PRODUCTS.length);
-    for (const store of DEMO_STORES) {
-      for (const product of DEMO_PRODUCTS) {
-        const e = world.entries.get(entryKey(store.id, product.sku));
-        expect(e).toBeDefined();
-        if (!e) continue;
-        expect(e.stock).toBeGreaterThanOrEqual(0);
-        expect(e.reserved).toBeGreaterThanOrEqual(0);
-        expect(e.reserved).toBeLessThanOrEqual(e.stock);
-        expect(Number.isInteger(e.priceCents)).toBe(true);
-        expect(e.priceCents).toBeGreaterThan(0);
-        // Prices snap to 50-peso steps (5000 cents).
-        expect(e.priceCents % 5000).toBe(0);
-      }
+    // Sparse: entries are only for carried store×product pairs.
+    expect(world.entries.size).toBeLessThanOrEqual(
+      DEMO_STORES.length * DEMO_PRODUCTS.length,
+    );
+    expect(world.entries.size).toBeGreaterThan(0);
+    for (const e of world.entries.values()) {
+      expect(e.stock).toBeGreaterThanOrEqual(0);
+      expect(e.reserved).toBeGreaterThanOrEqual(0);
+      expect(e.reserved).toBeLessThanOrEqual(e.stock);
+      expect(Number.isInteger(e.priceCents)).toBe(true);
+      expect(e.priceCents).toBeGreaterThan(0);
+      // Prices snap to 50-peso steps (5000 cents).
+      expect(e.priceCents % 5000).toBe(0);
+    }
+  });
+});
+
+describe('inventory distributes overlapping items across stores (headroom)', () => {
+  it('carries every product in at least one store', () => {
+    const world = generateWorld(2026);
+    for (const product of DEMO_PRODUCTS) {
+      expect(storesCarrying(world, product.sku).length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('stocks staples across multiple stores so orders can span alternatives', () => {
+    const world = generateWorld(2026);
+    const staples = DEMO_PRODUCTS.filter((p) => p.tier === 'staple');
+    // Most staples should be carried by ≥2 stores — that spread is the headroom
+    // the optimizer needs. (Averaged over the tier to stay robust to any one roll.)
+    const multiStore = staples.filter(
+      (p) => storesCarrying(world, p.sku).length >= 2,
+    );
+    expect(multiStore.length).toBeGreaterThanOrEqual(
+      Math.ceil(staples.length * 0.6),
+    );
+  });
+
+  it('keeps niche products narrow (1-2 stores)', () => {
+    const world = generateWorld(2026);
+    for (const product of DEMO_PRODUCTS.filter((p) => p.tier === 'niche')) {
+      expect(storesCarrying(world, product.sku).length).toBeLessThanOrEqual(2);
     }
   });
 });

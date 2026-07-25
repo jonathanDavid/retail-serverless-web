@@ -3,14 +3,22 @@ import {
   DEMO_PRODUCTS,
   DEMO_STORES,
   type ProductDef,
+  type ProductTier,
   type StoreDef,
 } from './catalog';
 
 /**
  * Seeded inventory generator. Deterministic: the same seed always produces the
- * same world (per-store stock, prices, reservations), which is what the
- * determinism tests pin down and what makes "actualizar inventario" honest —
- * a new seed is a new world, the same seed is the same world.
+ * same world (which stores carry which products, per-store stock, prices,
+ * reservations), which is what the determinism tests pin down and what makes
+ * "actualizar inventario" honest — a new seed is a new world, the same seed is
+ * the same world.
+ *
+ * Crucially, products are carried by a *subset* of stores driven by their tier:
+ * staples live in 3-4 stores, niche items in 1-2. That spread is what gives the
+ * pickup optimizer real headroom — an order of staples usually spans several
+ * viable stores, so a naive per-item-nearest plan scatters and the GA can
+ * consolidate it.
  */
 
 export const LOW_STOCK_THRESHOLD = 10;
@@ -72,21 +80,52 @@ export function aggregateStatus(entries: readonly InventoryEntry[]): StockStatus
   return 'available';
 }
 
+/** How many stores carry a product, by tier (network of 5 stores). */
+function coverageForTier(rng: Rng, tier: ProductTier, storeCount: number): number {
+  switch (tier) {
+    case 'staple':
+      // 3-4 stores, occasionally the whole network.
+      return Math.min(storeCount, rng() < 0.2 ? 5 : randInt(rng, 3, 4));
+    case 'common':
+      return Math.min(storeCount, randInt(rng, 2, 3));
+    case 'niche':
+      return Math.min(storeCount, randInt(rng, 1, 2));
+  }
+}
+
+/** Deterministic sample of `count` distinct stores (partial Fisher-Yates). */
+function sampleStores(
+  rng: Rng,
+  stores: readonly StoreDef[],
+  count: number,
+): StoreDef[] {
+  const pool = [...stores];
+  for (let i = 0; i < count && i < pool.length; i++) {
+    const j = i + Math.floor(rng() * (pool.length - i));
+    const tmp = pool[i]!;
+    pool[i] = pool[j]!;
+    pool[j] = tmp;
+  }
+  return pool.slice(0, count);
+}
+
 function rollEntry(rng: Rng, store: StoreDef, product: ProductDef): InventoryEntry {
-  // Price: base ± up to 12% per store, snapped to 50-peso steps.
-  const jitter = 1 + (rng() * 2 - 1) * 0.12;
+  // Price: base ± up to 15% per store, snapped to 50-peso steps. The spread
+  // gives the optimizer a cost trade-off (cheaper-but-farther vs pricier-close).
+  const jitter = 1 + (rng() * 2 - 1) * 0.15;
   const rawPesos = (product.basePriceCents / 100) * jitter;
   const pesos = Math.max(50, Math.round(rawPesos / 50) * 50);
 
-  // Stock distribution: ~12% empty shelves, ~18% low, the rest healthy.
+  // Carried cells are mostly healthy so orders stay fulfillable:
+  // ~5% temporarily out, ~13% low, the rest healthy.
   const roll = rng();
   let stock: number;
-  if (roll < 0.12) stock = 0;
-  else if (roll < 0.3) stock = randInt(rng, 1, LOW_STOCK_THRESHOLD);
+  if (roll < 0.05) stock = 0;
+  else if (roll < 0.18) stock = randInt(rng, 1, LOW_STOCK_THRESHOLD);
   else stock = randInt(rng, LOW_STOCK_THRESHOLD + 5, 80);
 
-  // ~10% of stocked cells have every unit reserved for other customers.
-  const reserved = stock > 0 && rng() < 0.1 ? stock : 0;
+  // ~8% of stocked cells have every unit reserved for other customers.
+  const reserved = stock > 0 && rng() < 0.08 ? stock : 0;
 
   return {
     storeId: store.id,
@@ -97,18 +136,30 @@ function rollEntry(rng: Rng, store: StoreDef, product: ProductDef): InventoryEnt
   };
 }
 
-/** Build the full demo world from a seed. Pure and deterministic. */
+/**
+ * Build the full demo world from a seed. Pure and deterministic. Each product
+ * is stocked only by the stores that carry it (see {@link coverageForTier}), so
+ * the entry map is sparse — a product may be absent from a store entirely,
+ * which is different from being present but out of stock.
+ */
 export function generateWorld(seed: number): DemoWorld {
   const rng = mulberry32(seed);
   const entries = new Map<string, InventoryEntry>();
 
-  for (const store of DEMO_STORES) {
-    for (const product of DEMO_PRODUCTS) {
+  for (const product of DEMO_PRODUCTS) {
+    const coverage = coverageForTier(rng, product.tier, DEMO_STORES.length);
+    const carriers = sampleStores(rng, DEMO_STORES, coverage);
+    for (const store of carriers) {
       entries.set(entryKey(store.id, product.sku), rollEntry(rng, store, product));
     }
   }
 
   return { seed, stores: DEMO_STORES, products: DEMO_PRODUCTS, entries };
+}
+
+/** Stores that carry a product (have an inventory entry for it, stocked or not). */
+export function storesCarrying(world: DemoWorld, sku: string): StoreDef[] {
+  return world.stores.filter((s) => world.entries.has(entryKey(s.id, sku)));
 }
 
 /** All entries for one product across stores. */

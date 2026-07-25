@@ -17,8 +17,8 @@ const STORES: StoreDef[] = [
 ];
 
 const PRODUCTS: ProductDef[] = [
-  { sku: 'P1', name: 'Producto 1', category: 'Bebidas', basePriceCents: 100000 },
-  { sku: 'P2', name: 'Producto 2', category: 'Bebidas', basePriceCents: 200000 },
+  { sku: 'P1', name: 'Producto 1', category: 'Bebidas', basePriceCents: 100000, tier: 'staple' },
+  { sku: 'P2', name: 'Producto 2', category: 'Bebidas', basePriceCents: 200000, tier: 'common' },
 ];
 
 function world(
