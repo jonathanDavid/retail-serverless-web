@@ -11,7 +11,7 @@ export function OrdersBoard() {
 
   if (tracked.length === 0) {
     return (
-      <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-brand/30 bg-brand/[0.03] p-8 text-center">
+      <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-brand/30 bg-brand/[0.03] p-8 text-center">
         <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand/10 text-brand-soft ring-1 ring-inset ring-brand/20">
           <Icon name="bolt" className="h-5 w-5" />
         </span>
