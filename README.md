@@ -143,16 +143,31 @@ apples-to-apples. Stock is decremented exactly once, when the pipeline reports
 ## Optional pickup optimizer
 
 `VITE_OPTIMIZER_URL` (e.g. `http://localhost:8000`) feature-flags an
-"Optimizar recogida" action on completed demo orders. It calls the
-**genetic-visualizer-api** pickup problem (see `genetic/CONTRACT.md` v2):
-`POST /api/runs { problem:"pickup", problemConfig:{ seed, stores, products,
-needs } }` with a seed hashed from the orderId, then consumes the WebSocket
-stream — the **first generation's** best solution is the un-optimized baseline
-and the final `done` renderSpec is the optimized one. The card then shows
-WITHOUT vs WITH: distance, travel time, store visits, item cost, and an overall
-optimization % derived from fitness (cost = −fitness). Errors degrade to an
-inline retry message; when the flag is unset the feature does not render.
-Neither project depends on the other.
+"Optimizar recogida" action on completed demo orders. It optimizes the **real
+order against the real store inventory**, not a synthetic scenario:
+
+1. **Build the scenario from real data** (`demo/scenario.ts`): the customer at
+   the map origin, the actual ordered line items as the shopping list (sku +
+   qty), and every store that can supply an ordered item — with its
+   coordinates, price, and sellable stock. This is sent verbatim as
+   `POST /api/runs { problem:"pickup", problemConfig:{ scenario } }` (see
+   `genetic/CONTRACT.md` → "Custom scenario"), and the WS stream is consumed to
+   the final `done` renderSpec = the optimized plan.
+2. **Naive baseline, computed locally** (the honest "sin optimizar"): each item
+   assigned to its individually-nearest in-stock store, with no consolidation —
+   the scattered route a shopper would actually walk.
+3. **Same cost model for both** (`lib/optimizerCompare.ts`): total cost = item
+   cost + routeKm · fuel + storesUsed · stop-penalty. Item price barely moves
+   between plans, so the headline % is the saving on **total** cost (route +
+   stops), which is where consolidation actually pays off.
+4. **Headroom or honesty.** The saving only exists if items are stocked by
+   multiple stores, so the inventory generator distributes staples across 3-4
+   stores. When an order is genuinely single-store-fulfillable (no alternatives
+   to consolidate), the card shows **"Ya es óptimo"** instead of a fake −0%. The
+   same honest state appears if the GA can't beat the naive plan.
+
+Errors degrade to an inline retry message; when the flag is unset the feature
+does not render. Neither project depends on the other.
 
 ---
 
@@ -168,7 +183,7 @@ Neither project depends on the other.
 | **Money** | Integer **cents**, `es-CO` `COP` via `Intl` | Amounts are never floats; totals are computed the same way the server does: `sum(qty * unitPriceCents)`. |
 | **State management** | **Zustand**, two small stores | `ordersStore` (session orders, toasts) and `demoStore` (world, cart, plans). Stock mutation has exactly one entry point (`commitFulfillment`), so the widgets can't drift. |
 | **Demo mode** | Simulate the pipeline client-side when `VITE_API_URL` is unset | A portfolio site must be demoable with zero infra. `api/demo.ts` stands in for SQS + the process Lambda through the same `OrdersApi` interface — the polling UI runs identical code with or without AWS. |
-| **Optimizer coupling** | Feature flag + WS stream consumption, no scenario endpoint | The comparison uses first-generation vs final solution of one run — zero extra endpoints, same scenario by construction, and the feature disappears entirely when the flag is unset. |
+| **Optimizer coupling** | Feature flag + explicit `problemConfig.scenario` built from the real order | The GA optimizes the actual order against the actual inventory; the naive baseline is computed locally and both are scored with one cost model, so the saving is real. No optimizer, no problem — the feature vanishes when the flag is unset. |
 
 ---
 
