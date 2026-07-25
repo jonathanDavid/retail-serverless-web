@@ -5,6 +5,14 @@ cart, submit the order, and watch it move through an event-driven pipeline (`rec
 queued → processing → completed / failed`) in real time, ending in a per-store fulfillment
 plan with a pickup route.
 
+## Screenshots
+
+![A completed order: the event pipeline stepper, per-store fulfillment plan, the optimizer before/after comparison, and the dashboard](docs/screenshots/product.png)
+
+*A finished order — it flowed `received → completed`, split across two stores with an estimated pickup route, and the optional GA optimizer trimmed the plan from 3 stores / 13.2 km to 2 stores / 10.8 km (−4.96% total cost).*
+
+![Testing-first layout: cart, live orders board, and the inventory browser](docs/screenshots/testing.png)
+
 > **Honesty note.** This is a **portfolio reconstruction** by Jonathan Ilias, not
 > employer code. It re-implements — from scratch and from memory — the production
 > patterns I shipped at **Omnix IA** (an event-driven retail backend: 20+ Lambdas,
