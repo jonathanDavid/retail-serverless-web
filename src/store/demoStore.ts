@@ -11,6 +11,7 @@ import { planFulfillment, type FulfillmentPlan } from '@/demo/fulfillment';
 import {
   entryKey,
   generateWorld,
+  totalSellable,
   type DemoWorld,
 } from '@/demo/inventory';
 
@@ -36,6 +37,8 @@ interface DemoState {
   finishReseed(seed: number): void;
 
   addSkuToCart(sku: string): void;
+  /** One-click sample: fill the cart with a few in-stock products to test fast. */
+  loadSampleCart(): void;
   setQty(sku: string, qty: number): void;
   removeSku(sku: string): void;
   clearCart(): void;
@@ -74,6 +77,22 @@ export const useDemoStore = create<DemoState>((set, get) => ({
     const line = cartLineFromCatalog(world, sku);
     if (!line) return;
     set({ cart: addToCart(cart, line) });
+  },
+
+  loadSampleCart() {
+    const { world } = get();
+    // Pick the first 3 products the network can actually cover (≥2 units),
+    // so the sample is always fulfillable and one click is enough to test.
+    const picks = world.products
+      .filter((p) => totalSellable(world, p.sku) >= 2)
+      .slice(0, 3);
+
+    let cart: CartLine[] = [];
+    picks.forEach((product, i) => {
+      const line = cartLineFromCatalog(world, product.sku);
+      if (line) cart = addToCart(cart, line, i === 0 ? 2 : 1);
+    });
+    set({ cart });
   },
 
   setQty(sku, qty) {
